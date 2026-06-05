@@ -12,9 +12,7 @@ export class Player {
     return {
       userId: this.userId,
       score: this.score,
-      hand: this.hand === undefined
-        ? undefined
-        : this.hand.dominos.length
+      hand: this.hand === undefined ? undefined : this.hand.dominos.length
     };
   }
 }

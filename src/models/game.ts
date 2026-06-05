@@ -1,5 +1,6 @@
 import {
   GameIO,
+  MessageIO,
   PlayerIO
 } from "../shared/socket-types";
 
@@ -9,27 +10,41 @@ import { Board } from "./board";
 import { Domino } from "./domino";
 import { Hand } from "./hand";
 import { Player } from "./player";
-
-import { io } from "../server";
 import { Room } from "../system/room";
+import { io } from "../server";
 
-export type GameState =
-  | "started"
-  | "playing"
-  | "waiting"
-  | "finished";
+type GameState = "started" | "playing" | "waiting" | "finished";
 
 type RoundInfo = {
   count: number;
   startUserId: string;
-  startType: "double" | "highest" | "winner";
+  startType: "double" | "chance" | "winner";
   startDomino?: Domino;
   winnerUserId?: string;
   winType?: "finished" | "blocked";
-  scoreDelta?: number;
+  winnerPointsLeft?: number;
+  winnerPointsAdd?: number;
 };
 
+const uiFancy = "$tyle{italic bold}";
+const uiGreat = "$tyle{italic bold blue}";
+const uiBad = "$tyle{italic bold red}";
+
+
 export class Game {
+  private initalMessages: MessageIO[] = [
+    {
+      kind: "system",
+      data: [
+        `Welcome to ${uiGreat}{Dominoes!}`,
+        `Press ${uiFancy}{Join} to join the players.`,
+        `Press ${uiFancy}{Start} to start the game, if you have ${uiFancy}{2 to 4} players.`
+      ]
+    }
+  ];
+
+  static winnerThreshold = 10;
+
   constructor(
     public room: Room,
     public gameState: GameState = "started",
@@ -37,7 +52,8 @@ export class Game {
     public pile: Domino[] | undefined = undefined,
     public activePlayerIndex: number | undefined = undefined,
     public roundData: RoundInfo | undefined = undefined,
-    public board: Board | undefined = undefined
+    public board: Board | undefined = undefined,
+    public messages: MessageIO[] = [...this.initalMessages]
   ) { }
 
   private inState(...gameStates: GameState[]) {
@@ -54,7 +70,7 @@ export class Game {
 
   private canPlace(player: Player): boolean {
     return player.hand!.dominos.some(domino =>
-      [true, false].some(x => this.board!.canPlace(domino, x))
+      [true, false].some(x => this.board!.canPlaceDomino(domino, x))
     );
   }
 
@@ -74,8 +90,10 @@ export class Game {
         this.pile.push(new Domino(leftPip, rightPip));
       }
     }
-
     shuffle(this.pile);
+
+    // TODO: Dev
+    this.pile = this.pile.slice(0, 6);
   }
 
   private initPlayers(started: boolean = false) {
@@ -83,24 +101,75 @@ export class Game {
       if (started) {
         player.score = 0;
       }
-      player.hand = new Hand(this.pile!.splice(0, 7));
+      // player.hand = new Hand(this.pile!.splice(0, 7));
+
+      // TODO: Dev
+      player.hand = new Hand(this.pile!.splice(0, 2));
     });
 
     shuffle(this.players);
   }
 
-  private isBetterStartingDomino(a: Domino, b: Domino) {
-    const aIsDouble = a.isDouble();
-    const bIsDouble = b.isDouble();
-
-    if (aIsDouble && !bIsDouble) return true;
-    if (!aIsDouble && bIsDouble) return false;
-
-    return a.getPoints() > b.getPoints();
+  private sendState(userId?: string) {
+    if (userId === undefined) {
+      io.to(this.room.roomKey()).emit(
+        "send",
+        {
+          kind: "set game",
+          data: this.toGameIO()
+        }
+      );
+      this.players.forEach(player =>
+        io.to(this.room.userKey(player.userId)).emit(
+          "send",
+          {
+            kind: "set hand",
+            data: player.hand?.toIO()
+          }
+        )
+      );
+      io.to(this.room.roomKey()).emit(
+        "send",
+        {
+          kind: "set board",
+          data: this.board?.toIO()
+        }
+      );
+    } else {
+      io.to(this.room.userKey(userId)).emit(
+        "send",
+        {
+          kind: "set game",
+          data: this.toGameIO()
+        }
+      );
+      io.to(this.room.userKey(userId)).emit(
+        "send",
+        {
+          kind: "set board",
+          data: this.board?.toIO()
+        }
+      );
+      const hand = this.isPlayer(userId) ? this.getPlayer(userId).hand : undefined;
+      io.to(this.room.userKey(userId)).emit(
+        "send",
+        {
+          kind: "set hand",
+          data: hand?.toIO()
+        }
+      );
+      io.to(this.room.userKey(userId)).emit(
+        "send",
+        {
+          kind: "set messages",
+          data: this.messages
+        }
+      );
+    }
   }
 
   private initRoundData(started: boolean = false) {
-    if (started) {
+    if (!started) {
       this.roundData = {
         count: this.roundData!.count + 1,
         startUserId: this.roundData!.winnerUserId!,
@@ -110,27 +179,22 @@ export class Game {
       return;
     }
 
-    let bestPlayer: Player | undefined = undefined;
-    let bestDomino: Domino | undefined = undefined;
-
-    this.players.forEach(player => {
-      player.hand!.dominos.forEach(domino => {
-        if (
-          bestDomino == undefined
-          || this.isBetterStartingDomino(domino, bestDomino)
-        ) {
-          bestDomino = domino;
-          bestPlayer = player;
+    const [bestDomino, bestPlayer] = (() => {
+      for (let i = 6; i >= 0; i--) {
+        const domino = new Domino(i, i);
+        for (const player of this.players) {
+          if (player.hand!.contains(domino)) {
+            return [domino, player];
+          }
         }
-      });
-    });
+      }
+      return [undefined, this.players[0]];
+    })();
 
     this.roundData = {
       count: 1,
-      startUserId: bestPlayer!.userId,
-      startType: bestDomino!.isDouble()
-        ? "double"
-        : "highest",
+      startUserId: bestPlayer.userId,
+      startType: bestDomino ? "double" : "chance",
       startDomino: bestDomino!
     };
   }
@@ -154,26 +218,39 @@ export class Game {
       player => player.userId === this.roundData!.startUserId
     );
 
-    io.to(this.room.roomKey()).emit(
-      "setGame",
-      this.toGameIO()
-    );
+    this.sendState();
 
-    this.players.forEach(player =>
-      io.to(this.room.userKey(player.userId)).emit(
-        "setHand",
-        player.hand!.toIO()
-      )
-    );
+    const { startUserId, startDomino, startType, count } = this.roundData!;
+    this.sendMessages([
+      {
+        kind: "system",
+        data: [
+          `${uiGreat}{${userId}} started round ${count}.`,
+          startType === "double"
+            ? `${uiGreat}{${startUserId}} starts because he has the highest double ${startDomino!.toString()}.`
+            : `${uiGreat}{${startUserId}} starts randomly because nobody has a double.`
+        ]
+      }
+    ]);
+  }
+
+  isBlocked(): boolean {
+    if (this.pile!.length > 0 || this.board!.leftChain.isEmpty()) {
+      return false;
+    }
+    const leftPip = this.board!.leftChain.getEnd()!.leftPip;
+    const rightPip = this.board!.rightChain.getEnd()!.rightPip;
+    return this.players.every(player => !player!.hand!.dominos.some(domino => {
+      if (domino.hasMatch(leftPip) || domino.hasMatch(rightPip)) {
+        return true;
+      }
+    }));
   }
 
   private advanceTurn(changeActivePlayer: boolean) {
     const activePlayer = this.players[this.activePlayerIndex!];
 
-    if (
-      activePlayer.hand!.hasFinished()
-      || this.board!.isBlocked()
-    ) {
+    if (activePlayer.hand!.hasFinished() || this.isBlocked()) {
 
       const startIndex = this.players.findIndex(
         player => player.userId === this.roundData!.startUserId
@@ -191,27 +268,58 @@ export class Game {
       if (activePlayer.hand!.hasFinished()) {
         this.roundData!.winnerUserId = activePlayer.userId;
         this.roundData!.winType = "finished";
+        this.roundData!.winnerPointsLeft = 0;
       } else {
         this.roundData!.winnerUserId = minPlayers[0].userId;
         this.roundData!.winType = "blocked";
+        this.roundData!.winnerPointsLeft = minPlayers[0].hand!.getPoints();
       }
 
-      this.roundData!.scoreDelta = players.reduce(
+      // TODO: Debug
+      console.log("players", players.map(player => [player.userId, player.hand!.dominos.length, player.hand!.getPoints()]));
+
+      this.roundData!.winnerPointsAdd = players.reduce(
         (sum, player) =>
-          player.userId === this.roundData!.winnerUserId
-            ? 0
-            : player.hand!.getPoints() + sum,
+          (player.userId === this.roundData!.winnerUserId ? 0 : player.hand!.getPoints()) + sum,
         0
       );
 
-      this.gameState = "waiting";
+      // TODO: Debug
+      console.log("delta:", this.roundData!.winnerPointsAdd)
+
+
+      const winner = this.getPlayer(this.roundData!.winnerUserId);
+      const { winnerUserId, winType } = this.roundData!;
+      const oldScore = winner.score!;
+      const newScore = oldScore + this.roundData!.winnerPointsAdd!
+      winner.score! = newScore;
+      const isFinished = newScore >= Game.winnerThreshold;
+      this.gameState = isFinished ? "finished" : "waiting";
 
       io.to(this.room.roomKey()).emit(
-        "setGame",
-        this.toGameIO()
+        "send",
+        {
+          kind: "set game",
+          data: this.toGameIO()
+        }
       );
 
-      return;
+
+      this.sendMessages([
+        {
+          kind: "system",
+          data: [
+            winType === "finished"
+              ? `${uiGreat}{${winnerUserId}} finished first.`
+              : `The board is blocked and ${uiGreat}{${winnerUserId}} has the smallest hand.`,
+            isFinished
+              ? `${uiGreat}{${winnerUserId}'s} points increase from ${uiFancy}{${oldScore} to ${newScore}}, which is in fact enough for him to win the game!`
+              : `${uiGreat}{${winnerUserId}'s} points increase from ${uiFancy}{${oldScore} to ${newScore}}.`,
+            isFinished
+              ? `Press ${uiFancy}{Finish} to finish the game.`
+              : `Press ${uiFancy}{Continue} to start the next round.`
+          ].flat()
+        }]);
     }
 
     if (changeActivePlayer) {
@@ -221,8 +329,11 @@ export class Game {
     }
 
     io.to(this.room.roomKey()).emit(
-      "setGame",
-      this.toGameIO()
+      "send",
+      {
+        kind: "set game",
+        data: this.toGameIO()
+      }
     );
   }
 
@@ -238,18 +349,28 @@ export class Game {
       this.roundData!.winnerUserId!
     );
 
-    winner.score! += this.roundData!.scoreDelta!;
+    const oldScore = winner.score!;
+    const newScore = oldScore + this.roundData!.winnerPointsAdd!
+    winner.score! = newScore;
+    // TODO: Debug
+    // console.log(winner.score);
 
-    if (winner.score! > 100) {
-      this.gameState = "finished";
+    // if (winner.score! > 100) {
 
-      io.to(this.room.roomKey()).emit(
-        "setGame",
-        this.toGameIO()
-      );
+    // TODO: Dev
+    // if (winner.score! > 10) {
+    //   this.gameState = "finished";
 
-      return;
-    }
+    //   io.to(this.room.roomKey()).emit(
+    //     "send",
+    //     {
+    //       kind: "set game",
+    //       data: this.toGameIO()
+    //     }
+    //   );
+
+    //   return;
+    // }
 
     this.board = new Board();
 
@@ -263,10 +384,18 @@ export class Game {
 
     this.gameState = "playing";
 
-    io.to(this.room.roomKey()).emit(
-      "setGame",
-      this.toGameIO()
-    );
+    this.sendState();
+
+    const { startUserId, count } = this.roundData!;
+    this.sendMessages([
+      {
+        kind: "system",
+        data: [
+          `${uiGreat}{${userId}} started round ${count}.`,
+          `${uiGreat}{${startUserId}} starts because he won last round.`,
+        ]
+      }
+    ]);
   }
 
   finishGame(userId: string) {
@@ -278,19 +407,23 @@ export class Game {
     }
 
     this.board = undefined;
-    this.pile = [];
-
+    this.pile = undefined;
     this.players = this.players.map(
       player => new Player(player.userId)
     );
-
     this.roundData = undefined;
     this.activePlayerIndex = undefined;
     this.gameState = "started";
+    this.activePlayerIndex = undefined;
 
+    this.sendState();
+    this.messages = [...this.initalMessages];
     io.to(this.room.roomKey()).emit(
-      "setGame",
-      this.toGameIO()
+      "send",
+      {
+        kind: "set messages",
+        data: this.messages
+      }
     );
   }
 
@@ -300,6 +433,8 @@ export class Game {
     placeLeft: boolean
   ) {
 
+    // console.log("placinggg", domino.leftPip, domino.rightPip, this.gameState, this.isActivePlayer(userId))
+
     if (
       !this.inState("playing")
       || !this.isActivePlayer(userId)
@@ -308,17 +443,36 @@ export class Game {
     }
 
     const player = this.getPlayer(userId);
+    const dominoIndex = player.hand!.dominos.findIndex(domino_ => domino_.isEqual(domino));
+    // console.log("domino index", dominoIndex)
+    if (dominoIndex < 0) {
+      return;
+    }
 
-    const result = this.board!.canPlace(
+    const result = this.board!.canPlaceDomino(
       domino,
-      placeLeft,
-      true
+      placeLeft
     );
 
+    // console.log("result", result)
+
     if (result) {
+      player.hand!.dominos.splice(dominoIndex, 1);
+      this.board!.placeDomino(domino, placeLeft);
+
       io.to(this.room.userKey(userId)).emit(
-        "setHand",
-        player.hand!.toIO()
+        "send",
+        {
+          kind: "set hand",
+          data: player.hand!.toIO()
+        }
+      );
+      io.to(this.room.roomKey()).emit(
+        "send",
+        {
+          kind: "set board",
+          data: this.board!.toIO()
+        }
       );
 
       this.advanceTurn(true);
@@ -339,10 +493,14 @@ export class Game {
       !this.canPlace(player)
       && this.pile!.length > 0
     ) {
+      player.hand!.dominos.push(this.pile!.pop()!);
 
       io.to(this.room.userKey(userId)).emit(
-        "setHand",
-        player.hand!.toIO()
+        "send",
+        {
+          kind: "set hand",
+          data: player.hand!.toIO()
+        }
       );
 
       this.advanceTurn(false);
@@ -381,27 +539,7 @@ export class Game {
   }
 
   joinGame(userId: string) {
-    io.to(this.room.userKey(userId)).emit(
-      "setGame",
-      this.toGameIO()
-    );
-
-    if (
-      !this.inState("started")
-      && this.isPlayer(userId)
-    ) {
-
-      const player = this.getPlayer(userId);
-
-      io.to(this.room.userKey(userId)).emit(
-        "setHand",
-        player.hand!.toIO()
-      );
-
-    } else {
-      io.to(this.room.userKey(userId)).emit("setHand", null);
-      io.to(this.room.userKey(userId)).emit("setBoard", null);
-    }
+    this.sendState(userId);
   }
 
   joinPlayers(userId: string) {
@@ -416,8 +554,11 @@ export class Game {
     this.players.push(new Player(userId));
 
     io.to(this.room.roomKey()).emit(
-      "setGame",
-      this.toGameIO()
+      "send",
+      {
+        kind: "set game",
+        data: this.toGameIO()
+      }
     );
   }
 
@@ -437,8 +578,11 @@ export class Game {
     );
 
     io.to(this.room.roomKey()).emit(
-      "setGame",
-      this.toGameIO()
+      "send",
+      {
+        kind: "set game",
+        data: this.toGameIO()
+      }
     );
   }
 
@@ -458,5 +602,16 @@ export class Game {
         ? undefined
         : this.roundData.count
     };
+  }
+
+  public sendMessages(messages: MessageIO[]) {
+    this.messages.push(...messages);
+    io.to(this.room.roomKey()).emit(
+      "send",
+      {
+        kind: "add messages",
+        data: messages
+      }
+    );
   }
 }

@@ -21,10 +21,11 @@ export class Hand {
     if (this.dominos.length !== hand.dominos.length) {
       return false;
     }
+    return this.dominos.every(domino => hand.dominos.some(_domino => _domino.isEqual(domino)));
+  }
 
-    return this.dominos.every(domino =>
-      hand.dominos.some(_domino => _domino.isEqual(domino))
-    );
+  contains(domino: Domino): boolean {
+    return this.dominos.some(domino_ => domino_.isEqual(domino));
   }
 
   toIO(): HandIO {
@@ -34,8 +35,6 @@ export class Hand {
   }
 
   static fromIO(hand: HandIO): Hand {
-    return new Hand(
-      hand.dominos.map(domino => Domino.fromIO(domino))
-    );
+    return new Hand(hand.dominos.map(domino => Domino.fromIO(domino)));
   }
 }

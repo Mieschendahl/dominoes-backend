@@ -1,42 +1,53 @@
+import { BoardIO } from "../shared/socket-types";
 import { Chain } from "./chain";
 import { Domino } from "./domino";
 
 export class Board {
   constructor(
     public leftChain: Chain = new Chain(true),
-    public rightChain: Chain = new Chain(false),
-    public inventory: number[][] = Array.from({ length: 7 }, () => [])
+    public rightChain: Chain = new Chain(false)
   ) { }
 
-  canPlace(
-    domino: Domino,
-    placeLeft: boolean,
-    doPlace: boolean = false
-  ): boolean {
-
-    let result;
-
-    if (this.leftChain.isEmpty()) {
-      result =
-        this.leftChain.canPlace(domino, doPlace)
-        && this.rightChain.canPlace(domino, doPlace);
-    } else {
-      if (placeLeft) {
-        result = this.leftChain.canPlace(domino, doPlace);
-      } else {
-        result = this.rightChain.canPlace(domino, doPlace);
-      }
-    }
-
-    if (result && doPlace) {
-      this.inventory[domino.leftPip].push(domino.rightPip);
-      this.inventory[domino.rightPip].push(domino.leftPip);
-    }
-
-    return result;
+  toIO(): BoardIO {
+    return {
+      leftChain: this.leftChain.toIO(),
+      rightChain: this.rightChain.toIO(),
+    };
   }
 
-  isBlocked(): boolean {
-    return this.inventory.some(ls => ls.length >= 6);
+  canPlaceDomino(domino: Domino, placeLeft: boolean): boolean {
+    if (this.leftChain.isEmpty()) {
+      return (
+        this.leftChain.canPlaceDomino(domino) &&
+        this.rightChain.canPlaceDomino(domino)
+      );
+    }
+
+    return placeLeft
+      ? this.leftChain.canPlaceDomino(domino)
+      : this.rightChain.canPlaceDomino(domino);
+  }
+
+  placeDomino(domino: Domino, placeLeft: boolean): boolean {
+    if (!this.canPlaceDomino(domino, placeLeft)) {
+      return false;
+    }
+
+    let placed: boolean;
+
+    if (this.leftChain.isEmpty()) {
+      const leftDomino = this.leftChain.getPlaceableDomino(domino)!;
+      const rightDomino = this.rightChain.getPlaceableDomino(domino)!;
+
+      this.leftChain.dominoes.push(leftDomino);
+      this.rightChain.dominoes.push(rightDomino);
+      placed = true;
+    } else {
+      placed = placeLeft
+        ? this.leftChain.placeDomino(domino)
+        : this.rightChain.placeDomino(domino);
+    }
+
+    return placed;
   }
 }

@@ -2,15 +2,15 @@ import { DominoIO } from "../shared/socket-types";
 
 export class Domino {
   constructor(
-    public leftPip: number,
-    public rightPip: number
+    public readonly leftPip: number,
+    public readonly rightPip: number
   ) { }
 
   isDouble(): boolean {
     return this.leftPip === this.rightPip;
   }
 
-  flipCopy(): Domino {
+  flip(): Domino {
     return new Domino(this.rightPip, this.leftPip);
   }
 
@@ -30,6 +30,14 @@ export class Domino {
       leftPip: this.leftPip,
       rightPip: this.rightPip
     };
+  }
+
+  hasMatch(pip: number): boolean {
+    return this.leftPip === pip || this.rightPip === pip;
+  }
+
+  toString(): string {
+    return `${this.leftPip}|${this.rightPip}`;
   }
 
   static fromIO(domino: DominoIO): Domino {

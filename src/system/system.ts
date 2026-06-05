@@ -1,40 +1,22 @@
-import { Socket } from "socket.io";
-
-import {
-  ClientToServerEvents,
-  JoinRoomResponseCallbackIO,
-  ServerToClientEvents,
-  UserActionIO
-} from "../shared/socket-types";
-
+import { AppSocket } from "../server";
+import { ClientData, ServerCb } from "../shared/socket-types";
 import { Room } from "./room";
-
-export type AppSocket =
-  Socket<ClientToServerEvents, ServerToClientEvents>;
 
 type SocketData = {
   roomId?: string;
   userId?: string;
 };
 
-export class System {
+class System {
   constructor(
     public sockets: Map<AppSocket, SocketData> = new Map(),
     public rooms: Map<string, Room> = new Map()
   ) { }
 
-  private getSocketData(
-    socket: AppSocket
-  ): {
-    roomId?: string;
-    userId?: string;
-    room?: Room;
-  } {
-
+  private getSocketData(socket: AppSocket): { roomId?: string, userId?: string, room?: Room } {
     const roomId = this.sockets.get(socket)?.roomId;
     const userId = this.sockets.get(socket)?.userId;
     const room = this.rooms.get(roomId!);
-
     return {
       roomId,
       userId,
@@ -53,45 +35,37 @@ export class System {
 
   leaveRoom(socket: AppSocket) {
     const { room, userId } = this.getSocketData(socket);
-
     if (userId !== undefined && room !== undefined) {
       room.leaveRoom(userId);
     }
-
     this.sockets.set(socket, {});
   }
 
-  joinRoom(
-    socket: AppSocket,
-    callback: JoinRoomResponseCallbackIO,
-    roomId: string,
-    userId: string
-  ) {
-
-    roomId = roomId.trim();
-    userId = userId.trim();
-
+  joinRoom(socket: AppSocket, callback: ServerCb, roomId: string, userId: string) {
+    roomId = roomId.trim()
+    userId = userId.trim()
     if (roomId === "" || userId === "") {
+      callback({
+        kind: "join room",
+        data: {
+          accepted: false,
+          reason: "roomId and userId are required"
+        }
+      });
       return;
     }
-
     if (!this.rooms.has(roomId)) {
       this.rooms.set(roomId, new Room(roomId));
     }
-
-    this.rooms
-      .get(roomId)
-      ?.joinRoom(socket, callback, roomId, userId);
+    this.rooms.get(roomId)?.joinRoom(socket, callback, roomId, userId);
   }
 
-  doAction(socket: AppSocket, userAction: UserActionIO) {
+  doAction(socket: AppSocket, data: ClientData) {
     const { room, userId } = this.getSocketData(socket);
-
     if (userId === undefined || room === undefined) {
       return;
     }
-
-    room.doAction(userId, userAction);
+    room.doAction(userId, data);
   }
 }
 
