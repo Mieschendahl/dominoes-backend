@@ -21,7 +21,8 @@ export class Room {
   }
 
   userKey(userId: string) {
-    return `${this.roomId}($KEY_SEPERATOR$)${userId}`; // TODO: Slight vulnerability here
+    // TODO: Slight vulnerability here
+    return `${this.roomId}($KEY_SEPERATOR$)${userId}`;
   }
 
   private getUserIdData(userId: string): { socket?: AppSocket } {

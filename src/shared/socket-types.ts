@@ -102,8 +102,6 @@ export type ClientToServerEvents = {
   sendCb: (data: ClientData, cb: ServerCb) => void
 };
 
-export type MessageKindIO = "system" | "user";
-
 export type MessageIO = 
   | {
     kind: "user",

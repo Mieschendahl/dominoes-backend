@@ -37,7 +37,7 @@ export class Domino {
   }
 
   toString(): string {
-    return `${this.leftPip}|${this.rightPip}`;
+    return `[${this.leftPip}|${this.rightPip}]`;
   }
 
   static fromIO(domino: DominoIO): Domino {
