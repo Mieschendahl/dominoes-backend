@@ -25,6 +25,9 @@ io.on("connection", (socket: AppSocket) => {
   system.addSocket(socket);
 
   socket.on("disconnect", () => {
+    system.doAction(socket, {
+      kind: "leave players"
+    });
     system.removeSocket(socket);
   });
 
@@ -33,6 +36,9 @@ io.on("connection", (socket: AppSocket) => {
       case "join room":
         const { roomId, userId } = data;
         system.joinRoom(socket, cb, roomId, userId);
+        system.doAction(socket, {
+          kind: "join players"
+        });
         break;
     }
   });

@@ -36,9 +36,7 @@ export class Game {
     {
       kind: "system",
       data: [
-        `Welcome to ${uiGreat}{Dominoes!}`,
-        `Press ${uiFancy}{Join} to join the players.`,
-        `Press ${uiFancy}{Start} to start the game, if you have ${uiFancy}{2 to 4} players.`
+        `Welcome to ${uiGreat}{Dominoes!}`
       ]
     }
   ];
