@@ -8,7 +8,10 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(
   server,
   {
     cors: {
-      origin: "http://localhost:3011",
+      origin: [
+        "http://localhost:3000",
+        "https://localhost:3000"
+      ]
     },
     connectionStateRecovery: {},
     pingTimeout: 20000,
@@ -245,7 +248,7 @@ export class Game {
       data: [
         `Welcome to ${uiGreat}{Dominoes!}`,
         `Press ${uiFancy}{Join} to join the players.`,
-        `Press ${uiFancy}{Start} to start the game with ${uiFancy}{2 to 4} players.`
+        `Press ${uiFancy}{Start} to start the game, if you have ${uiFancy}{2 to 4} players.`
       ]
     }
   ];
@@ -1045,7 +1048,7 @@ io.on("connection", (socket: AppSocket) => {
   });
 });
 
-const port = 3012;
+const port = 4000;
 server.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
 });
