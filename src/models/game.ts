@@ -26,15 +26,15 @@ type RoundInfo = {
   winnerPointsAdd?: number;
 };
 
-const uiFancy = "$tyle{bold}";
-const uiGreat = "$tyle{bold yellow}";
+const uiBold = "$tyle{bold}";
+const uiItalic = "$tyle{bold italic}";
 
 export class Game {
   private initalMessages: MessageIO[] = [
     {
       kind: "system",
       data: [
-        `Welcome to ${uiFancy}{Dominoes!}`
+        `Welcome to ${uiBold}{Dominoes!}`
       ]
     }
   ];
@@ -87,9 +87,6 @@ export class Game {
       }
     }
     shuffle(this.pile);
-
-    // TODO: Dev
-    // this.pile = this.pile.slice(0, 6);
   }
 
   private initPlayers(started: boolean = false) {
@@ -98,9 +95,6 @@ export class Game {
         player.score = 0;
       }
       player.hand = new Hand(this.pile!.splice(0, 7));
-
-      // TODO: Dev
-      // player.hand = new Hand(this.pile!.splice(0, 2));
     });
 
     shuffle(this.players);
@@ -221,15 +215,15 @@ export class Game {
       {
         kind: "system",
         data: [
-          `${uiGreat}{${userId}} pressed ${uiFancy}{Continue}`,
+          `${uiItalic}{${userId}} pressed ${uiBold}{Start}`,
         ]
       },
       {
         kind: "system",
         data: [
           startType === "double"
-            ? `${uiGreat}{${startUserId}} starts because they have the highest double: ${startDomino!.toString()}`
-            : `${uiGreat}{${startUserId}} starts randomly because nobody has a double`
+            ? `${uiItalic}{${startUserId}} starts because they have the highest double: ${startDomino!.toString()}`
+            : `${uiItalic}{${startUserId}} starts randomly because nobody has a double`
         ]
       }
     ]);
@@ -276,18 +270,11 @@ export class Game {
         this.roundData!.winnerPointsLeft = minPlayers[0].hand!.getPoints();
       }
 
-      // TODO: Debug
-      // console.log("players", players.map(player => [player.userId, player.hand!.dominos.length, player.hand!.getPoints()]));
-
       this.roundData!.winnerPointsAdd = players.reduce(
         (sum, player) =>
           (player.userId === this.roundData!.winnerUserId ? 0 : player.hand!.getPoints()) + sum,
         0
       );
-
-      // TODO: Debug
-      // console.log("delta:", this.roundData!.winnerPointsAdd)
-
 
       const winner = this.getPlayer(this.roundData!.winnerUserId);
       const { winnerUserId, winType } = this.roundData!;
@@ -311,16 +298,16 @@ export class Game {
           kind: "system",
           data: [
             winType === "finished"
-              ? `${uiGreat}{${winnerUserId}} finished first.`
-              : `The board is blocked and ${uiGreat}{${winnerUserId}} has the smallest hand`,
+              ? `${uiItalic}{${winnerUserId}} finished first.`
+              : `The board is blocked and ${uiItalic}{${winnerUserId}} has the smallest hand`,
           ]
         },
         {
           kind: "system",
           data: [
             isFinished
-              ? `${uiGreat}{${winnerUserId}'s} points increase from ${uiFancy}{${oldScore} to ${newScore}}, which makes him the winner!`
-              : `${uiGreat}{${winnerUserId}'s} points increase from ${uiFancy}{${oldScore} to ${newScore}}`,
+              ? `${uiItalic}{${winnerUserId}'s} points increase from ${uiBold}{${oldScore} to ${newScore}}, which makes him the winner!`
+              : `${uiItalic}{${winnerUserId}'s} points increase from ${uiBold}{${oldScore} to ${newScore}}`,
           ]
         }
       ]);
@@ -376,13 +363,13 @@ export class Game {
       {
         kind: "system",
         data: [
-          `${uiGreat}{${userId}} pressed ${uiFancy}{Continue}`,
+          `${uiItalic}{${userId}} pressed ${uiBold}{Continue}`,
         ]
       },
       {
         kind: "system",
         data: [
-          `${uiGreat}{${startUserId}} starts because they won the last round`,
+          `${uiItalic}{${startUserId}} starts because they won the last round`,
         ]
       },
     ]);
