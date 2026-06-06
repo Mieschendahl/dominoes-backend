@@ -30,16 +30,28 @@ const uiBold = "$tyle{bold}";
 const uiItalic = "$tyle{bold italic}";
 
 export class Game {
+  static winnerThreshold = 100;
+
   private initalMessages: MessageIO[] = [
     {
       kind: "system",
       data: [
         `Welcome to ${uiBold}{Dominoes!}`
       ]
+    },
+    {
+      kind: "system",
+      data: [
+        `Gain a total of ${uiBold}{100} points to win the game!`
+      ]
+    },
+    {
+      kind: "system",
+      data: [
+        `${uiBold}{2 to 4} players required`
+      ]
     }
   ];
-
-  static winnerThreshold = 10;
 
   constructor(
     public room: Room,
@@ -297,8 +309,8 @@ export class Game {
           kind: "system",
           data: [
             winType === "finished"
-              ? `${uiItalic}{${winnerUserId}} finished first.`
-              : `The board is blocked and ${uiItalic}{${winnerUserId}} has the smallest hand`,
+              ? `${uiItalic}{${winnerUserId}} wins the round, because they finished first`
+              : `${uiItalic}{${winnerUserId}} wins the round, because the board is blocked and they have the smallest hand`,
           ]
         },
         {
