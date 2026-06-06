@@ -215,15 +215,15 @@ export class Game {
       {
         kind: "system",
         data: [
-          `${uiItalic}{${userId}} pressed ${uiBold}{Start}`,
+          `${uiItalic}{${userId}} started the game`,
         ]
       },
       {
         kind: "system",
         data: [
           startType === "double"
-            ? `${uiItalic}{${startUserId}} starts because they have the highest double: ${startDomino!.toString()}`
-            : `${uiItalic}{${startUserId}} starts randomly because nobody has a double`
+            ? `${uiItalic}{${startUserId}} begins because they have the double ${startDomino!.leftPip}`
+            : `${uiItalic}{${startUserId}} begins because they are lucky`
         ]
       }
     ]);
@@ -292,8 +292,7 @@ export class Game {
         }
       );
 
-
-      this.sendMessages([
+      const messages: MessageIO[] = [
         {
           kind: "system",
           data: [
@@ -305,12 +304,21 @@ export class Game {
         {
           kind: "system",
           data: [
-            isFinished
-              ? `${uiItalic}{${winnerUserId}'s} points increase from ${uiBold}{${oldScore} to ${newScore}}, which makes him the winner!`
-              : `${uiItalic}{${winnerUserId}'s} points increase from ${uiBold}{${oldScore} to ${newScore}}`,
+            `${uiItalic}{${winnerUserId}'s} points increase from ${uiBold}{${oldScore} to ${newScore}}`
           ]
         }
-      ]);
+      ];
+      if (isFinished) {
+        messages.push(
+          {
+          kind: "system",
+          data: [
+            `${uiItalic}{${winnerUserId}} wins the game, because they reached ${Game.winnerThreshold} points!`
+          ]
+        }
+        )
+      }
+      this.sendMessages(messages);
     }
 
     if (changeActivePlayer) {
@@ -363,13 +371,13 @@ export class Game {
       {
         kind: "system",
         data: [
-          `${uiItalic}{${userId}} pressed ${uiBold}{Continue}`,
+          `${uiItalic}{${userId}} continued the game`,
         ]
       },
       {
         kind: "system",
         data: [
-          `${uiItalic}{${startUserId}} starts because they won the last round`,
+          `${uiItalic}{${startUserId}} begins because they won the last round`,
         ]
       },
     ]);
