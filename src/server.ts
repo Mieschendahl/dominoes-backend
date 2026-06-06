@@ -4,14 +4,14 @@ import { ClientData, ClientToServerEvents, ServerCb, ServerToClientEvents } from
 import { system } from "./system/system";
 
 const server = createServer();
+const port = 4000;
+
 export const io = new Server<ClientToServerEvents, ServerToClientEvents>(
   server,
   {
+    path: "/dominoes/api",
     cors: {
-      origin: [
-        "http://localhost:3000",
-        "https://localhost:3000"
-      ]
+      origin: ["http://localhost:3000", "https://test.goolagoon.org"],
     },
     connectionStateRecovery: {},
     pingTimeout: 20000,
@@ -48,7 +48,6 @@ io.on("connection", (socket: AppSocket) => {
   });
 });
 
-const port = 4000;
 server.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
 });
