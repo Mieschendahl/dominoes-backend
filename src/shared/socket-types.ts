@@ -102,6 +102,9 @@ export type ClientToServerEvents = {
   sendCb: (data: ClientData, cb: ServerCb) => void
 };
 
+// TODO: check if user message allowed
+// TODO: and also fix the room communication thing
+
 export type MessageIO = 
   | {
     kind: "user",

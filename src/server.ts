@@ -9,7 +9,7 @@ const port = 4000;
 export const io = new Server<ClientToServerEvents, ServerToClientEvents>(
   server,
   {
-    path: "",
+    path: "/api",
     cors: {
       origin: ["http://localhost:3000"],
     },
