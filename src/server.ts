@@ -3,6 +3,20 @@ import { Server, Socket } from "socket.io";
 import { ClientData, ClientToServerEvents, ServerCb, ServerToClientEvents } from "./shared/socket-types";
 import { system } from "./system/system";
 
+const stage = process.env.STAGE!;
+
+const config = {
+  local: {
+    origin: "http://localhost:3000",
+  },
+  test: {
+    origin: "https://test.dominoes.goolagoon.org"
+  },
+  prod: {
+    origin: "https://dominoes.goolagoon.org",
+  },
+}[stage]!;
+
 const server = createServer();
 const port = 4000;
 
@@ -11,7 +25,7 @@ export const io = new Server<ClientToServerEvents, ServerToClientEvents>(
   {
     path: "/api",
     cors: {
-      origin: ["http://localhost:3000"],
+      origin: [config.origin],
     },
     connectionStateRecovery: {},
     pingTimeout: 20000,

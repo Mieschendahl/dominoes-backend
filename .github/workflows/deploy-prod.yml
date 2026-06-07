@@ -1,0 +1,22 @@
+name: Deploy prod backend
+
+on:
+  push:
+    branches:
+      - prod
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy frontend to prod server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 91.99.109.255
+          username: deploy
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            cd /opt/dominoes/prod/backend
+            git pull origin prod
+            docker compose up -d --build dominoes-prod-backend
+            docker compose ps
