@@ -9,9 +9,9 @@ const port = 4000;
 export const io = new Server<ClientToServerEvents, ServerToClientEvents>(
   server,
   {
-    path: "/dominoes/api",
+    path: "",
     cors: {
-      origin: ["http://localhost:3000", "https://test.goolagoon.org"],
+      origin: ["http://localhost:3000"],
     },
     connectionStateRecovery: {},
     pingTimeout: 20000,
