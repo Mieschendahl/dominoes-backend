@@ -41,6 +41,8 @@ class System {
     this.sockets.set(socket, {});
   }
 
+  private roomTimers = new Map<string, NodeJS.Timeout>();
+
   joinRoom(socket: AppSocket, callback: ServerCb, roomId: string, userId: string) {
     roomId = roomId.trim()
     userId = userId.trim()
@@ -57,6 +59,16 @@ class System {
     if (!this.rooms.has(roomId)) {
       this.rooms.set(roomId, new Room(roomId));
     }
+
+    clearTimeout(this.roomTimers.get(roomId));
+    const timer = setTimeout(() => {
+      const room = this.rooms.get(roomId)!;
+      room.userIds.forEach((_, userId) => room.leaveRoom(userId));
+      this.rooms.delete(roomId);
+      this.roomTimers.delete(roomId);
+    }, 60 * 120 * 1000);
+    this.roomTimers.set(roomId, timer);
+
     this.rooms.get(roomId)?.joinRoom(socket, callback, roomId, userId);
   }
 
