@@ -309,8 +309,8 @@ export class Game {
           kind: "system",
           data: [
             winType === "finished"
-              ? `${uiItalic}{${winnerUserId}} wins the round, because they finished first`
-              : `${uiItalic}{${winnerUserId}} wins the round, because the board is blocked and they have the smallest hand`,
+              ? `${uiItalic}{${winnerUserId}} wins the round because they finished first`
+              : `${uiItalic}{${winnerUserId}} wins the round because the board is blocked and they have the smallest hand`,
           ]
         },
         {
@@ -325,7 +325,7 @@ export class Game {
           {
           kind: "system",
           data: [
-            `${uiItalic}{${winnerUserId}} wins the game, because they reached ${Game.winnerThreshold} points!`
+            `${uiItalic}{${winnerUserId}} wins the game because they reached ${Game.winnerThreshold} points!`
           ]
         }
         )
