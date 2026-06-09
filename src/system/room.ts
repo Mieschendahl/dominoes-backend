@@ -35,7 +35,7 @@ export class Room {
   leaveRoom(userId: string) {
     const { socket } = this.getUserIdData(userId);
     if (socket !== undefined) {
-      this.userIds.set(userId, {});
+      this.userIds.delete(userId);
       socket.leave(this.roomKey());
       socket.leave(this.userKey(userId));
     }
