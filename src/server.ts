@@ -3,7 +3,7 @@ import { Server, Socket } from "socket.io";
 import { ClientData, ClientToServerEvents, ServerCb, ServerToClientEvents } from "./shared/socket-types";
 import { system } from "./system/system";
 
-const stage = process.env.STAGE!;
+const stage = process.env.STAGE ?? "local";
 
 const config = {
   local: {
